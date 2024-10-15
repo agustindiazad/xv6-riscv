@@ -22,6 +22,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+extern int setpriority(int pid, int priority);
+extern int setboost(int pid, int boost);
+
 
 // ulib.c
 int stat(const char*, struct stat*);

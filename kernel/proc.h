@@ -81,6 +81,7 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -90,7 +91,9 @@ struct proc {
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
-  int pid;                     // Process ID
+  int pid;
+  int priority;
+  int boost;                     // Process ID
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
@@ -104,4 +107,18 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
 };
+
+// Declarar el tipo de estructura
+struct ptable_struct {
+    struct spinlock lock;
+    struct proc proc[NPROC];
+};
+
+// Declarar ptable como externa
+extern struct ptable_struct ptable;
+
+
+int set_priority(int pid, int priority);
+int set_boost(int pid, int boost);

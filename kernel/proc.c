@@ -146,6 +146,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+
   return p;
 }
 
@@ -435,26 +436,40 @@ wait(uint64 addr)
 }
 
 // Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
+// Each CPU calls scheduler() aftersetting itself up.
 // Scheduler never returns.  It loops, doing:
 //  - choose a process to run.
 //  - swtch to start running that process.
 //  - eventually that process transfers control
-//    via swtch back to the scheduler.
+//    via swtch back to the schedule
+
 void
 scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-
   c->proc = 0;
   for(;;){
     // The most recent process to run may have had interrupts
     // turned off; enable them to avoid a deadlock if all
     // processes are waiting.
     intr_on();
-
     int found = 0;
+   
+    for(p = proc; p < &proc[NPROC]; p++){
+      acquire(&p->lock);
+      if(p->state == RUNNABLE){
+        p->priority += p->boost;
+        if(p->priority >= 9){
+          p->boost =-1;
+          p->priority = 9;
+        } else if(p->priority <= 0){
+          p->boost = 1;
+          p->priority = 0;
+        }
+      }
+      release(&p->lock);
+    }
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
@@ -464,7 +479,6 @@ scheduler(void)
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
-
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
@@ -479,6 +493,8 @@ scheduler(void)
     }
   }
 }
+
+
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -692,4 +708,38 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+
+
+struct ptable_struct ptable;
+
+// Asumiendo que tienes una estructura proc que tiene campos priority y boost
+
+int set_priority(int pid, int priority) {
+    struct proc *p;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->pid == pid) {
+            p->priority = priority;
+            release(&ptable.lock);
+            return 0;  // Éxito
+        }
+    }
+    release(&ptable.lock);
+    return -1;  // PID no encontrado
+}
+
+int set_boost(int pid, int boost) {
+    struct proc *p;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->pid == pid) {
+            p->boost = boost;
+            release(&ptable.lock);
+            return 0;  // Éxito
+        }
+    }
+    release(&ptable.lock);
+    return -1;  // PID no encontrado
 }
